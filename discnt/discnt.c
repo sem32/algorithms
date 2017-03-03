@@ -10,12 +10,12 @@
 #define FILE_OUT "discnt.out"
 
 #ifdef GETLINE
-void get_array(char *data, unsigned **ret, int *length)
+void get_array(char *data, int **ret, int *length)
 {
     int length_str, i;
-    unsigned number = 0;
+    int number = 0;
     int counter = 0, index = 0;
-    unsigned *array;
+    int *array;
 
     if (!data || !ret || !length) {
         return;
@@ -30,7 +30,7 @@ void get_array(char *data, unsigned **ret, int *length)
     }
 
     *length = counter;
-    *ret = (unsigned *)malloc(counter * sizeof(unsigned));
+    *ret = (int *)malloc(counter * sizeof(int));
     array = *ret;
 
     for (i = 0; i < length_str; i++) {
@@ -64,7 +64,7 @@ int compare(int a, int b)
     return 0;
 }
 
-void shift(unsigned *array, int length, int index, unsigned element)
+void shift(int *array, int length, int index, int element)
 {
     int i;
     for (i = length; i > index; i--) {
@@ -74,10 +74,10 @@ void shift(unsigned *array, int length, int index, unsigned element)
 }
 
 #ifdef INSERT_SORT
-unsigned *sort(unsigned *array, int length)
+int *sort(int *array, int length)
 {
     int mid, sorted_length, index, i, j, res, flag;
-    unsigned *sorted = (unsigned *)calloc(length, sizeof(unsigned));
+    int *sorted = (int *)calloc(length, sizeof(int));
 
     if (!sorted) {
         fprintf(stderr, "No memory\n");
@@ -112,7 +112,7 @@ unsigned *sort(unsigned *array, int length)
 }
 #else
 
-int search_index(unsigned *array, int left, int right, unsigned element, int length)
+int search_index(int *array, int left, int right, int element, int length)
 {
     int mid, res;
 
@@ -152,10 +152,10 @@ int search_index(unsigned *array, int left, int right, unsigned element, int len
     return mid;
 }
 
-unsigned *sort(unsigned *array, int length)
+int *sort(int *array, int length)
 {
     int index, i;
-    unsigned *sorted = (unsigned *)calloc(length, sizeof(unsigned));
+    int *sorted = (int *)calloc(length, sizeof(int));
 
     if (!sorted) {
         fprintf(stderr, "No memory\n");
@@ -173,25 +173,26 @@ unsigned *sort(unsigned *array, int length)
 }
 #endif
 
-float calculate_best_summ(unsigned *price, int length, int discount)
+float calculate_best_summ(int *price, int length, int discount)
 {
     float res = 0;
     int i;
     int count_purchase = length / 3;
     float koef = (100 - (float)discount) / 100;
 
-    for (i = length-count_purchase; i < length; i++) {
-        res += (price[i]*koef);
+    for (i = (length-count_purchase); i < length; i++) {
+        res += price[i];
     }
+    res = res * koef;
 
-    for (i = 0; i < length-count_purchase; i++) {
+    for (i = 0; i < (length-count_purchase); i++) {
         res += price[i];
     }
 
     return res;
 }
 
-void get_data(FILE *file, unsigned **array, int *length, unsigned *discount)
+void get_data(FILE *file, int **array, int *length, int *discount)
 {
     int price_length = 0;
     int i;
@@ -200,7 +201,7 @@ void get_data(FILE *file, unsigned **array, int *length, unsigned *discount)
     }
     // Decrement for minus last discount element
     price_length--;
-    unsigned *price = (unsigned*)malloc(price_length * sizeof(unsigned));
+    int *price = (int*)malloc(price_length * sizeof(int));
     rewind(file);
 
     for(i = 0; i < price_length; i++) {
@@ -218,8 +219,8 @@ int main(int argc, char* argv[])
     int i;
     char *line = NULL;
     size_t n = 0;
-    unsigned *price, *sorted_price;
-    unsigned discount;
+    int *price, *sorted_price;
+    int discount;
     int price_length = 0;
 
     if (argc > 2) {
