@@ -173,12 +173,12 @@ int *sort(int *array, int length)
 }
 #endif
 
-float calculate_best_summ(int *price, int length, int discount)
+double calculate_best_summ(int *price, int length, int discount)
 {
-    float res = 0;
+    double res = 0;
     int i;
     int count_purchase = length / 3;
-    float koef = (100 - (float)discount) / 100;
+    double koef = (100 - (double)discount) / 100;
 
     for (i = (length-count_purchase); i < length; i++) {
         res += price[i];
@@ -286,7 +286,7 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    float res = calculate_best_summ(sorted_price, price_length, discount);
+    double res = calculate_best_summ(sorted_price, price_length, discount);
 
     if (!(file_out = fopen(file_name_out,"w"))) {
         printf("File OUT not found '%s'\n", file_name_out);
