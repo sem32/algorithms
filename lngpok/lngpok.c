@@ -66,6 +66,58 @@ void get_data(FILE *file, int **array, int *length)
     *array = raw_data;
 }
 
+int find_sequence(int *array, int length, int start_index, int count_joker)
+{
+    int index = start_index;
+    int i;
+    int current_length = 1, current_count_joker = count_joker,
+            current_value = 0, max = 0, flag_set_next_index = 0;
+
+    if (length - start_index == 0) {
+        return current_count_joker;
+    }
+
+    for (i = start_index; i < length - 1; i++) {
+        if (array[i] == array[i + 1]) {
+            continue;
+        }
+        if ((array[i + 1] - array[i]) == 1) {
+            current_length++;
+        } else if (current_count_joker > 0) {
+            do {
+                if (current_value == 0) {
+                    current_value = array[i];
+                }
+                if (flag_set_next_index == 0 && index != i) {
+                    index = i;
+                    flag_set_next_index = 1;
+                }
+                current_value++;
+                current_count_joker--;
+                current_length++;
+                if ((array[i + 1] - current_value) == 1) {
+                    current_length++;
+                    break;
+                }
+            } while (current_count_joker > 0);
+            current_value = 0;
+        } else if (index > start_index){
+            max = find_sequence(array, length, index, count_joker);
+            break;
+        }
+    }
+
+    if (current_count_joker > 0) {
+        current_length = current_length + current_count_joker;
+    }
+
+    if (current_length > max) {
+        max = current_length;
+    }
+
+    return max;
+}
+
 int calculate_result(int *array, int length) {
     int count_joker = 0;
     int i;
@@ -82,28 +134,7 @@ int calculate_result(int *array, int length) {
     printf("jokers: %d\n", count_joker);
 #endif
 
-    int max = 0, current_length = 1, current_count_joker = count_joker;
-    int current_joker = 0;
-    for (i = count_joker; i < length - 1; i++) {
-        if ((array[i + 1] - array[i]) == 1) {
-            current_length++;
-        } else if (current_count_joker > 0) {
-            current_count_joker--;
-            current_length++;
-            current_joker = array[i] + 1;
-
-            if ((array[i + 1] - current_joker) == 1) {
-                current_length++;
-            }
-        } else {
-            current_length = 1;
-            current_count_joker = count_joker;
-        }
-
-        if (max < current_length) {
-            max = current_length;
-        }
-    }
+    int max = find_sequence(array, length, count_joker, count_joker);
 
     return max;
 }
@@ -114,6 +145,7 @@ int main(int argc, char* argv[])
     char *file_name_in = FILE_IN, *file_name_out = FILE_OUT;
     int *array;
     int length = 0;
+    int i;
 
     if (argc > 2) {
         if (argv[1] && strcasestr(argv[1], ".in")) {
@@ -140,7 +172,6 @@ int main(int argc, char* argv[])
 
 #ifdef DEBUG
     /*Debug data*/
-    int i;
     for (i = 0; i < length; i++) {
         printf("raw_data[%d]: %d\n", i, array[i]);
     }
