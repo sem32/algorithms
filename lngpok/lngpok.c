@@ -71,9 +71,9 @@ int find_sequence(int *array, int length, int start_index, int count_joker)
     int index = start_index;
     int i;
     int current_length = 1, current_count_joker = count_joker,
-            current_value = 0, max = 0, flag_set_next_index = 0;
+            current_value = 0, max = 0;
 
-    if (length - start_index == 0) {
+    if (length - start_index <= 0) {
         return current_count_joker;
     }
 
@@ -83,32 +83,45 @@ int find_sequence(int *array, int length, int start_index, int count_joker)
         }
         if ((array[i + 1] - array[i]) == 1) {
             current_length++;
+#ifdef  DEBUG
+            printf("1 array[%d] = %d,  array[%d+1] = %d, current_length: %d\n", i, array[i], i, array[i+1], current_length);
+#endif
         } else if (current_count_joker > 0) {
+            current_value = array[i];
             do {
-                if (current_value == 0) {
-                    current_value = array[i];
-                }
-                if (flag_set_next_index == 0 && index != i) {
+                if (index <= start_index && i > start_index) {
                     index = i;
-                    flag_set_next_index = 1;
                 }
-                current_value++;
                 current_count_joker--;
                 current_length++;
+#ifdef  DEBUG
+                printf("2 array[%d] = %d, current_length: %d\n", i + count_joker - current_count_joker, current_value , current_length);
+#endif
+                current_value++;
                 if ((array[i + 1] - current_value) == 1) {
                     current_length++;
+#ifdef  DEBUG
+                    printf("3 array[%d] = %d, current_length: %d\n", i + count_joker - current_count_joker + 1, current_value, current_length);
+#endif
                     break;
                 }
             } while (current_count_joker > 0);
-            current_value = 0;
         } else if (index > start_index){
             max = find_sequence(array, length, index, count_joker);
             break;
+        } else {
+            if (current_length > max) {
+                max = current_length;
+            }
+            current_length = 1;
         }
     }
 
     if (current_count_joker > 0) {
-        current_length = current_length + current_count_joker;
+        current_length += current_count_joker;
+#ifdef  DEBUG
+        printf("current_length: %d\n", current_length);
+#endif
     }
 
     if (current_length > max) {
@@ -135,6 +148,8 @@ int calculate_result(int *array, int length) {
 #endif
 
     int max = find_sequence(array, length, count_joker, count_joker);
+
+    printf("%d\n", max);
 
     return max;
 }
