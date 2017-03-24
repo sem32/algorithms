@@ -83,9 +83,8 @@ int find_sequence(int *array, int length, int start_index, int count_joker)
         }
         if ((array[i + 1] - array[i]) == 1) {
             current_length++;
-#ifdef  DEBUG
-            printf("1 array[%d] = %d,  array[%d+1] = %d, current_length: %d\n", i, array[i], i, array[i+1], current_length);
-#endif
+        } else if (count_joker > 0 && (array[i + 1] - array[i]) > (count_joker + 1)) {
+            index = i + 1;
         } else if (current_count_joker > 0) {
             current_value = array[i];
             do {
@@ -94,19 +93,13 @@ int find_sequence(int *array, int length, int start_index, int count_joker)
                 }
                 current_count_joker--;
                 current_length++;
-#ifdef  DEBUG
-                printf("2 array[%d] = %d, current_length: %d\n", i + count_joker - current_count_joker, current_value , current_length);
-#endif
                 current_value++;
                 if ((array[i + 1] - current_value) == 1) {
                     current_length++;
-#ifdef  DEBUG
-                    printf("3 array[%d] = %d, current_length: %d\n", i + count_joker - current_count_joker + 1, current_value, current_length);
-#endif
                     break;
                 }
             } while (current_count_joker > 0);
-        } else if (index > start_index){
+        } else if (index > start_index) {
             max = find_sequence(array, length, index, count_joker);
             break;
         } else {
@@ -119,9 +112,6 @@ int find_sequence(int *array, int length, int start_index, int count_joker)
 
     if (current_count_joker > 0) {
         current_length += current_count_joker;
-#ifdef  DEBUG
-        printf("current_length: %d\n", current_length);
-#endif
     }
 
     if (current_length > max) {
@@ -141,11 +131,6 @@ int calculate_result(int *array, int length) {
             break;
         }
     }
-
-#ifdef DEBUG
-    printf("-------------------\n");
-    printf("jokers: %d\n", count_joker);
-#endif
 
     int max = find_sequence(array, length, count_joker, count_joker);
 
@@ -192,7 +177,7 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    sort(array, length, 1000000);
+    sort(array, length, 100000);
 
 #ifdef DEBUG
     for (i = 0; i < length; i++) {
