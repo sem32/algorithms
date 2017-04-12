@@ -72,27 +72,28 @@ void get_data(FILE *file, int *S, int *C, hamster_t **H)
 int calculate_result(hamster_t *H, int length, int food)
 {
     int res = 0;
-    int i = 0, k;
+    int k = 0;
 
     while(1) {
 
-        food = food - H[i].h;
+        food = food - H[res].h;
         if (res > 0) {
             for (k = 0; k < res; k++) {
-                food = food - H[k].g * res;
+                food = food - H[k].g;
+                if (food < 0) {
+                    break;
+                }
             }
         }
 
         res++;
-        i++;
-        if (food <= 0) {
-            if (food < 0 && res > 0) {
-                res--;
-            }
+
+        if (food < 0) {
             break;
         }
     }
-    return res;
+
+    return res - (food < 0 ? 1 : 0);
 }
 
 int main(int argc, char* argv[])
