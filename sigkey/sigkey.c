@@ -72,7 +72,7 @@ int calculate_result(keys_t *array, int length)
     int i, j;
     int res = 0;
     for (i = 0; i < length - 1; i++) {
-        for (j = i + 1; j < length - 1; j++) {
+        for (j = i + 1; j < length; j++) {
             if (check_keys(&array[i], &array[j])) {
                 res++;
                 break;
