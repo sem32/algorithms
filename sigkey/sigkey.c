@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 //#define DEBUG
 
@@ -12,9 +13,10 @@
 static int etalon[27] = {0, };
 
 struct keys {
-    char key[27];
+//    char key[27];
     int weight;
     int length;
+    int fouded;
 };
 
 typedef struct keys keys_t;
@@ -25,8 +27,9 @@ void init_etalon(void)
     char letter;
 
     for (letter = 'a', i = 1; letter <= 'z'; letter++, i++) {
-        summ += letter;
+        summ |= 1 << (letter - 'a');
         etalon[i] = summ;
+//        printf("etalon[%d]: %d, letter: %d, letter: %c\n", i, etalon[i], letter, letter);
     }
 }
 
@@ -34,37 +37,74 @@ int calculate_weight(char *key, int length)
 {
     int i, ret = 0;
     for (i = 0; i < length; i++) {
-        ret += key[i];
+        ret |= 1 << (key[i] - 'a');
     }
 
     return ret;
 }
 
-void get_data(FILE *file, int *length, keys_t **keys)
-{
-    int i;
-    fscanf(file, "%d", length);
-
-    keys_t *data = (keys_t *)malloc(*length * sizeof(keys_t));
-
-    for (i = 0; i < *length; i++) {
-        fscanf(file, "%s", data[i].key);
-        data[i].length = strlen(data[i].key);
-        data[i].weight = calculate_weight(data[i].key, data[i].length);
-    }
-
-    *keys = data;
-}
-
 int check_keys(keys_t *key1, keys_t *key2)
 {
+    if (key1->fouded || key2->fouded) {
+        return 0;
+    }
+
+    if (key1->weight & key2->weight) {
+        return 0;
+    }
+
     int lens = key1->length + key2->length;
     int weight = key1->weight + key2->weight;
 
     if (etalon[lens] == weight) {
+        key1->fouded = key2->fouded = 1;
         return 1;
     }
     return 0;
+}
+
+int get_data(FILE *file, int *length, keys_t **keys)
+{
+    int i, k;
+    int res = 0, found = 0;
+    fscanf(file, "%d", length);
+    keys_t key;
+    int d = 0;
+    char key_str[27];
+
+    keys_t *data = (keys_t *)malloc(*length * sizeof(keys_t));
+
+    for (i = 0; i < *length; i++) {
+        fscanf(file, "%s", key_str);
+        key.length = strlen(key_str);
+        key.weight = calculate_weight(key_str, key.length);
+        key.fouded = 0;
+
+        found = 0;
+
+        for (k = 0; k < d; k++) {
+            if (key.fouded) {
+                break;
+            } else if (data[k].fouded){
+                continue;
+            }
+            if (check_keys(&key, &data[k])) {
+                res++;
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found) {
+            data[d].length = key.length;
+            data[d].weight = key.weight;
+            d++;
+        }
+    }
+
+    *length = d;
+    *keys = data;
+    return res;
 }
 
 int calculate_result(keys_t *array, int length)
@@ -72,8 +112,11 @@ int calculate_result(keys_t *array, int length)
     int i, j;
     int res = 0;
     for (i = 0; i < length - 1; i++) {
+        if (array[i].fouded) {
+            continue;
+        }
         for (j = i + 1; j < length; j++) {
-            if (check_keys(&array[i], &array[j])) {
+            if (!array[j].fouded && check_keys(&array[i], &array[j])) {
                 res++;
                 break;
             }
@@ -110,8 +153,9 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    printf("time Start: %d\n", (int)time (NULL));
     init_etalon();
-    get_data(file_in, &length, &array);
+    int res = get_data(file_in, &length, &array);
 
 
 #ifdef DEBUG
@@ -121,11 +165,12 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    int res = calculate_result(array, length);
+    res += calculate_result(array, length);
     if (!(file_out = fopen(file_name_out,"w"))) {
         printf("File OUT not found '%s'\n", file_name_out);
         return 0;
     }
+    printf("time Stop: %d\n", (int)time (NULL));
 
     fprintf(file_out, "%d\n", res);
 //#ifdef DEBUG
