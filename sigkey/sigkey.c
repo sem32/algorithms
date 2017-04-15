@@ -13,12 +13,15 @@
 static int etalon[27] = {0, };
 
 struct keys {
-//    char key[27];
+    char key[27];
     int weight;
     int length;
     int fouded;
-};
+    int mask;
 
+    struct keys *left;
+    struct keys *right;
+};
 typedef struct keys keys_t;
 
 void init_etalon(void)
@@ -29,18 +32,36 @@ void init_etalon(void)
     for (letter = 'a', i = 1; letter <= 'z'; letter++, i++) {
         summ |= 1 << (letter - 'a');
         etalon[i] = summ;
-//        printf("etalon[%d]: %d, letter: %d, letter: %c\n", i, etalon[i], letter, letter);
     }
 }
 
-int calculate_weight(char *key, int length)
+void set_key_data(keys_t *key)
 {
-    int i, ret = 0;
+    int i, weight = 0;
+    int length = strlen(key->key);
+    char *key_str = key->key;
+    int max = 0;
+    int mask = 0;
+
     for (i = 0; i < length; i++) {
-        ret |= 1 << (key[i] - 'a');
+        weight |= 1 << (key_str[i] - 'a');
+        if (max < (key_str[i] - 'a')) {
+            max = key_str[i] - 'a';
+        }
     }
 
-    return ret;
+    for (i = 0; i <= max; i++) {
+        mask |= 1 << i;
+    }
+
+    key->mask = mask;
+    key->length = length;
+    key->fouded = 0;
+    key->left = NULL;
+    key->right = NULL;
+    key->weight = weight;
+
+    return;
 }
 
 int check_keys(keys_t *key1, keys_t *key2)
@@ -63,66 +84,111 @@ int check_keys(keys_t *key1, keys_t *key2)
     return 0;
 }
 
-int get_data(FILE *file, int *length, keys_t **keys)
+static keys_t *root;
+
+void add(keys_t *parent, keys_t *element)
 {
-    int i, k;
-    int res = 0, found = 0;
-    fscanf(file, "%d", length);
-    keys_t key;
-    int d = 0;
-    char key_str[27];
-
-    keys_t *data = (keys_t *)malloc(*length * sizeof(keys_t));
-
-    for (i = 0; i < *length; i++) {
-        fscanf(file, "%s", key_str);
-        key.length = strlen(key_str);
-        key.weight = calculate_weight(key_str, key.length);
-        key.fouded = 0;
-
-        found = 0;
-
-        for (k = 0; k < d; k++) {
-            if (key.fouded) {
-                break;
-            } else if (data[k].fouded){
-                continue;
-            }
-            if (check_keys(&key, &data[k])) {
-                res++;
-                found = 1;
-                break;
-            }
-        }
-
-        if (!found) {
-            data[d].length = key.length;
-            data[d].weight = key.weight;
-            d++;
-        }
+    if (parent == NULL) {
+        parent = root;
     }
 
-    *length = d;
-    *keys = data;
+    if (root == NULL) {
+        root = element;
+        return;
+    }
+
+    if (element->weight > parent->weight) {
+        if (parent->right) {
+            add(parent->right, element);
+        } else {
+            parent->right = element;
+        }
+    } else {
+        if (parent->left) {
+            add(parent->left, element);
+        } else {
+            parent->left = element;
+        }
+    }
+}
+
+void get_data(FILE *file, int *length)
+{
+    int i, k;
+    fscanf(file, "%d", length);
+    keys_t *item;
+
+    for (i = 0; i < *length; i++) {
+        item = (keys_t *)calloc(sizeof(keys_t), 1);
+        fscanf(file, "%s", item->key);
+        set_key_data(item);
+
+        add(root, item);
+    }
+
+    return;
+}
+
+keys_t *find(keys_t *parrent, int weight, keys_t *key)
+{
+    if (parrent == NULL) {
+        parrent = root;
+    }
+
+    if (parrent->weight == weight) {
+//        printf("found: %s vs %s\n", key->key, parrent->key);
+        return parrent;
+    }
+    if (parrent->right && weight > parrent->weight) {
+        return find(parrent->right, weight, key);
+    } else if (parrent->left && weight < parrent->weight) {
+        return find(parrent->left, weight, key);
+    }
+
+    return NULL;
+}
+
+int find_key(keys_t *key)
+{
+    int ret = 0;
+    if (!key || key->fouded) {
+        return 0;
+    }
+
+    int found = key->mask - key->weight;
+    keys_t *found_key  = find(NULL, found, key);
+    key->fouded = 1;
+    if (found_key) {
+        found_key->fouded = 1;
+        ret = 1;
+    }
+
+    return ret;
+}
+
+int calculate_result(keys_t *root)
+{
+    int res = 0;
+
+    if (!root || root->fouded) {
+        return 0;
+    }
+
+    res += calculate_result(root->left);
+    res += find_key(root);
+    res += calculate_result(root->right);
+
     return res;
 }
 
-int calculate_result(keys_t *array, int length)
+void print_tree(keys_t *root)
 {
-    int i, j;
-    int res = 0;
-    for (i = 0; i < length - 1; i++) {
-        if (array[i].fouded) {
-            continue;
-        }
-        for (j = i + 1; j < length; j++) {
-            if (!array[j].fouded && check_keys(&array[i], &array[j])) {
-                res++;
-                break;
-            }
-        }
+    if (!root) {
+        return;
     }
-    return res;
+    print_tree(root->left);
+    printf("key: %d\n", root->weight);
+    print_tree(root->right);
 }
 
 int main(int argc, char* argv[])
@@ -130,7 +196,6 @@ int main(int argc, char* argv[])
     FILE *file_in = NULL, *file_out = NULL;
     char *file_name_in = FILE_IN, *file_name_out = FILE_OUT;
     int length = 0;
-    keys_t *array;
 
     if (argc > 2) {
         if (argv[1] && strcasestr(argv[1], ".in")) {
@@ -153,10 +218,8 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    printf("time Start: %d\n", (int)time (NULL));
     init_etalon();
-    int res = get_data(file_in, &length, &array);
-
+    get_data(file_in, &length);
 
 #ifdef DEBUG
     /*Debug data*/
@@ -165,12 +228,13 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    res += calculate_result(array, length);
+//    print_tree(root);
+
+    int res = calculate_result(root);
     if (!(file_out = fopen(file_name_out,"w"))) {
         printf("File OUT not found '%s'\n", file_name_out);
         return 0;
     }
-    printf("time Stop: %d\n", (int)time (NULL));
 
     fprintf(file_out, "%d\n", res);
 //#ifdef DEBUG
@@ -178,8 +242,8 @@ int main(int argc, char* argv[])
 //#endif
 
     /*Free data*/
-    if (array) {
-        free(array);
+    if (root) {
+        free(root);
     }
 
     fclose(file_in);
