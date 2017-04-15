@@ -74,21 +74,30 @@ int calculate_result(hamster_t *H, int length, int _food)
     int res = 0;
     int k = 0;
     int food = _food;
+    int i = 0;
+    hamster_t out[length];
 
-    while(1) {
-
-        food = food - H[res].h;
+    for (i = 0; i < length; i++) {
+        food = food - H[i].h;
         if (res > 0) {
             for (k = 0; k < res; k++) {
-                food = food - H[k].g;
-                if (food < 0) {
-                    break;
-                }
+                food = food - out[k].g;
             }
-            food = food - (H[res].g * res);
+            food = food - (H[i].g * res);
         }
 
-        res++;
+        if (food >= 0) {
+            out[++res] = H[i];
+        } else {
+            food = food + H[i].h;
+            if (res > 0) {
+                for (k = 0; k < res; k++) {
+                    food = food + out[k].g;
+                }
+                food = food + (H[i].g * res);
+            }
+            continue;
+        }
 
         if (food < 0 || (food == 0 && _food > 0)) {
             break;
