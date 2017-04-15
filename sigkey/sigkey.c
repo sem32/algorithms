@@ -24,17 +24,6 @@ struct keys {
 };
 typedef struct keys keys_t;
 
-void init_etalon(void)
-{
-    int i, summ = 0;
-    char letter;
-
-    for (letter = 'a', i = 1; letter <= 'z'; letter++, i++) {
-        summ |= 1 << (letter - 'a');
-        etalon[i] = summ;
-    }
-}
-
 void set_key_data(keys_t *key)
 {
     int i, weight = 0;
@@ -218,7 +207,6 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    init_etalon();
     get_data(file_in, &length);
 
 #ifdef DEBUG
