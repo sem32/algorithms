@@ -8,10 +8,6 @@
 #define FILE_IN "sigkey.in"
 #define FILE_OUT "sigkey.out"
 
-#define RADIX 10
-
-static int etalon[27] = {0, };
-
 struct keys {
     char key[27];
     int weight;
@@ -23,6 +19,8 @@ struct keys {
     struct keys *right;
 };
 typedef struct keys keys_t;
+
+static keys_t *root;
 
 void set_key_data(keys_t *key)
 {
@@ -52,28 +50,6 @@ void set_key_data(keys_t *key)
 
     return;
 }
-
-int check_keys(keys_t *key1, keys_t *key2)
-{
-    if (key1->fouded || key2->fouded) {
-        return 0;
-    }
-
-    if (key1->weight & key2->weight) {
-        return 0;
-    }
-
-    int lens = key1->length + key2->length;
-    int weight = key1->weight + key2->weight;
-
-    if (etalon[lens] == weight) {
-        key1->fouded = key2->fouded = 1;
-        return 1;
-    }
-    return 0;
-}
-
-static keys_t *root;
 
 void add(keys_t *parent, keys_t *element)
 {
@@ -125,7 +101,6 @@ keys_t *find(keys_t *parrent, int weight, keys_t *key)
     }
 
     if (parrent->weight == weight) {
-//        printf("found: %s vs %s\n", key->key, parrent->key);
         return parrent;
     }
     if (parrent->right && weight > parrent->weight) {
@@ -180,6 +155,15 @@ void print_tree(keys_t *root)
     print_tree(root->right);
 }
 
+void free_tree(keys_t *root) {
+    if (!root) {
+        return;
+    }
+    free_tree(root->left);
+    free_tree(root->right);
+    free(root);
+}
+
 int main(int argc, char* argv[])
 {
     FILE *file_in = NULL, *file_out = NULL;
@@ -231,7 +215,7 @@ int main(int argc, char* argv[])
 
     /*Free data*/
     if (root) {
-        free(root);
+        free_tree(root);
     }
 
     fclose(file_in);
