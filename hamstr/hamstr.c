@@ -77,6 +77,8 @@ int calculate_result(hamster_t *H, int length, int _food)
     int i = 0;
     hamster_t out[length];
 
+    memset(out, 0, sizeof(out));
+    
     for (i = 0; i < length; i++) {
         food = food - H[i].h;
         if (res > 0) {
