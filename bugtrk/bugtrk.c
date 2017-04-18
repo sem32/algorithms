@@ -8,59 +8,44 @@
 #define FILE_IN "bugtrk.in"
 #define FILE_OUT "bugtrk.out"
 
-void get_data(FILE *file, int *N, int *W, int *H)
+void get_data(FILE *file, long int *N, long int *W, long int *H)
 {
-    fscanf(file, "%d %d %d", N, W, H);
+    fscanf(file, "%ld %ld %ld", N, W, H);
     return;
 }
 
-long int calculate_result(int N, int W, int H)
+long int recalc(long int size, long int W, long int H)
 {
-    int side1 = 0;
-    int side2 = 0;
-    int numbers = N;
+    long int res_W = 0;
+    long int res_H = 0;
 
-    if (W > H) {
-        side1 = W;
-        side2 = H;
-    } else {
-        side1 = H;
-        side2 = W;
-    }
+    res_W = size / W;
+    res_H = size / H;
 
-    int res = side1;
-    int free_size1, free_size2;
-    free_size1 = free_size2 = res;
-    int foo = 0;
+    return res_H * res_W;
+}
 
-    while (numbers > 0) {
-        while (free_size2 >= 0) {
-            if (numbers <= 0) {
-                break;
-            }
-            if (free_size2 >= side2) {
-                foo = free_size2 / side2;
-                numbers -= foo;
-                free_size2 -= (side2 * foo);
-            }
-            if (free_size2 < 0 || free_size2 < side2) {
-                free_size1 += side2;
-                free_size2 += side2;
-                res += side2;
-                numbers -= (N - numbers);
-            }
+long int calculate_result(long int N, long int W, long int H)
+{
+    long int numbers = N;
+    long int size = 0;
+
+    while ((numbers - recalc(size, W, H)) > 0) {
+        if (H == 1) {
+         size += W;
+        } else {
+            size += H;
         }
     }
 
-
-    return res;
+    return size;
 }
 
 int main(int argc, char* argv[])
 {
     FILE *file_in = NULL, *file_out = NULL;
     char *file_name_in = FILE_IN, *file_name_out = FILE_OUT;
-    int N = 0, W = 0, H = 0;
+    long int N = 0, W = 0, H = 0;
 
     if (argc > 2) {
         if (argv[1] && strcasestr(argv[1], ".in")) {
