@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <math.h>
 
 //#define DEBUG
 
@@ -17,22 +16,42 @@ void get_data(FILE *file, int *N, int *W, int *H)
 
 long int calculate_result(int N, int W, int H)
 {
-    long int res = 0;
-    int square_root = sqrt(N);
+    int side1 = 0;
+    int side2 = 0;
+    int numbers = N;
 
-    if (N <= 2) {
-        if (W > H) {
-            return H * N;
-        } else {
-            return W * N;
+    if (W > H) {
+        side1 = W;
+        side2 = H;
+    } else {
+        side1 = H;
+        side2 = W;
+    }
+
+    int res = side1;
+    int free_size1, free_size2;
+    free_size1 = free_size2 = res;
+    int foo = 0;
+
+    while (numbers > 0) {
+        while (free_size2 >= 0) {
+            if (numbers <= 0) {
+                break;
+            }
+            if (free_size2 >= side2) {
+                foo = free_size2 / side2;
+                numbers -= foo;
+                free_size2 -= (side2 * foo);
+            }
+            if (free_size2 < 0 || free_size2 < side2) {
+                free_size1 += side2;
+                free_size2 += side2;
+                res += side2;
+                numbers -= (N - numbers);
+            }
         }
     }
 
-    if (W > H) {
-        res = square_root * W;
-    } else {
-        res = square_root * H;
-    }
 
     return res;
 }
