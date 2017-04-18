@@ -31,10 +31,10 @@ long int calculate_result(long int N, long int W, long int H)
     long int size = 0;
 
     while ((numbers - recalc(size, W, H)) > 0) {
-        if (H == 1) {
-         size += W;
-        } else {
+        if (H > 1) {
             size += H;
+        } else {
+            size += W;
         }
     }
 
