@@ -16,13 +16,7 @@ void get_data(FILE *file, long int *N, long int *W, long int *H)
 
 long int recalc(long int size, long int W, long int H)
 {
-    long int res_W = 0;
-    long int res_H = 0;
-
-    res_W = size / W;
-    res_H = size / H;
-
-    return res_H * res_W;
+    return (size / W) * (size / H);
 }
 
 long int calculate_result(long int N, long int W, long int H)
