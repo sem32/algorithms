@@ -16,21 +16,49 @@ typedef struct edge {
     int allocated_from;
     int length_to;
     int length_from;
+    int hash;
 
-    struct edge *next;
+    struct edge *left;
+    struct edge *right;
 
     int added;
 } edge_t;
 
-edge_t *find_edge(edge_t *root, char *name)
-{
-    edge_t *current = root;
+static edge_t *root;
 
-    while(current) {
-        if (!strcmp(current->name, name)) {
-            return current;
-        }
-        current = current->next;
+static inline int hash(char *str)
+{
+    int hash = 5381;
+    int c;
+
+    while ((c = *str++)) {
+        hash = ((hash << 3) + hash) + c;
+    }
+
+    return hash;
+}
+
+edge_t *find_edge(edge_t *parrent, char *name, int hash_id)
+{
+    if (hash_id < 0) {
+        hash_id = hash(name);
+    }
+
+    if (parrent == NULL) {
+        parrent = root;
+    }
+
+    if (parrent == NULL) {
+        return NULL;
+    }
+
+    if (parrent->hash == hash_id) {
+        return parrent;
+    }
+    if (parrent->right && hash_id > parrent->hash) {
+        return find_edge(parrent->right, name, hash_id);
+    } else if (parrent->left && hash_id < parrent->hash) {
+        return find_edge(parrent->left, name, hash_id);
     }
 
     return NULL;
@@ -40,9 +68,9 @@ edge_t *create_new_edge(char *name)
 {
     edge_t *item = (edge_t *)calloc(sizeof(edge_t), 1);
     strncpy(item->name, name, strlen(name));
-    item->to = NULL;
-    item->from = NULL;
+    item->to = item->from = NULL;
     item->length_to = item->length_from = item->allocated_to = item->allocated_from = item->added = 0;
+    item->hash = hash(name);
 
     return item;
 }
@@ -59,7 +87,8 @@ void add_edges(edge_t *parent, edge_t *element) {
         if ((parent->length_from + 1) >= parent->allocated_from) {
             parent->allocated_from += 10;
             parent->from = (edge_t **) realloc(parent->from, parent->allocated_from * sizeof(edge_t *));
-            memset(parent->from + ((parent->allocated_from - 10) * sizeof(edge_t *)), 0, parent->allocated_from * sizeof(edge_t *));
+            memset(parent->from + ((parent->allocated_from - 10) * sizeof(edge_t *)), 0,
+                   parent->allocated_from * sizeof(edge_t *));
         }
     }
     parent->from[parent->length_from] = element;
@@ -73,53 +102,60 @@ void add_edges(edge_t *parent, edge_t *element) {
         if ((element->length_to + 1) >= element->allocated_to) {
             element->allocated_to += 10;
             element->to = (edge_t **) realloc(element->to, element->allocated_to * sizeof(edge_t *));
-            memset(element->to + ((element->allocated_to - 10) * sizeof(edge_t *)), 0, element->allocated_to * sizeof(edge_t *));
+            memset(element->to + ((element->allocated_to - 10) * sizeof(edge_t *)), 0,
+                   element->allocated_to * sizeof(edge_t *));
         }
     }
     element->to[element->length_to] = parent;
     element->length_to++;
 }
 
-void add_to_root(edge_t **root, edge_t *item)
+void add_to_root(edge_t *parent, edge_t *element)
 {
-    if (!root) {
-        return;
+    if (parent == NULL) {
+        parent = root;
     }
-    if (!(*root)) {
-        *root = item;
+
+    if (root == NULL) {
+        root = element;
         return;
     }
 
-    edge_t *current = *root;
-    while (current->next) {
-        current = current->next;
+    if (element->hash > parent->hash) {
+        if (parent->right) {
+            add_to_root(parent->right, element);
+        } else {
+            parent->right = element;
+        }
+    } else {
+        if (parent->left) {
+            add_to_root(parent->left, element);
+        } else {
+            parent->left = element;
+        }
     }
-    current->next = item;
 }
 
-void get_data(FILE *file, edge_t **_root)
+void get_data(FILE *file)
 {
     edge_t *item1 = NULL, *item2 = NULL;
     char name1[51] = {0, }, name2[51] = {0,};
-    edge_t *root = NULL;
 
     while (fscanf(file, "%s %s\n", name1, name2) != EOF) {
-        item1 = find_edge(root, name1);
+        item1 = find_edge(root, name1, -1);
         if (!item1) {
             item1 = create_new_edge(name1);
-            add_to_root(&root, item1);
+            add_to_root(root, item1);
         }
 
-        item2 = find_edge(root, name2);
-
+        item2 = find_edge(root, name2, -1);
         if (!item2) {
             item2 = create_new_edge(name2);
-            add_to_root(&root, item2);
+            add_to_root(root, item2);
         }
 
         add_edges(item1, item2);
     }
-    *_root = root;
 
     return;
 }
@@ -228,19 +264,26 @@ edge_t *queue_pop(queue_t *queue)
     return ret;
 }
 
-void implementation(edge_t *root, FILE *file)
+void add_to_queue(queue_t *queue, edge_t *item)
+{
+    if (!item) {
+        return;
+    }
+    add_to_queue(queue, item->left);
+    if (item->length_from == 0) {
+        queue_push(queue, NULL, item, NULL, 0);
+    }
+    add_to_queue(queue, item->right);
+}
+
+void implementation(FILE *file)
 {
     queue_t queue = {0 };
     queue_t posponed_queue = {0 };
-    edge_t *current = root;
+    edge_t *current = NULL;
 
     // Add to queue single vertex
-    while (current) {
-        if (current->length_from == 0) {
-            queue_push(&queue, NULL, current, NULL, 0);
-        }
-        current = current->next;
-    }
+    add_to_queue(&queue, root);
 
     while ((current = queue_pop(&queue))) {
         if (current->added == 0) {
@@ -267,7 +310,6 @@ int main(int argc, char* argv[])
 {
     FILE *file_in = NULL, *file_out = NULL;
     char *file_name_in = FILE_IN, *file_name_out = FILE_OUT;
-    edge_t *root = NULL;
 
     if (argc > 2) {
         if (argv[1] && strcasestr(argv[1], ".in")) {
@@ -290,7 +332,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    get_data(file_in, &root);
+    get_data(file_in);
 
 #ifdef DEBUG
     /*Debug data*/
@@ -306,7 +348,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    implementation(root, file_out);
+    implementation(file_out);
 
 //#ifdef DEBUG
 //    printf("res: %d\n", res);
