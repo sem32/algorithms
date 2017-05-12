@@ -16,7 +16,7 @@ typedef struct edge {
     int allocated_from;
     int length_to;
     int length_from;
-    int hash;
+    unsigned long hash;
 
     struct edge *left;
     struct edge *right;
@@ -26,21 +26,21 @@ typedef struct edge {
 
 static edge_t *root;
 
-static inline int hash(char *str)
+static inline unsigned long hash(char *str)
 {
-    int hash = 5381;
+    unsigned long hash = 5381;
     int c;
 
     while ((c = *str++)) {
-        hash = ((hash << 3) + hash) + c;
+        hash = ((hash << 5) + hash) + c;
     }
 
     return hash;
 }
 
-edge_t *find_edge(edge_t *parrent, char *name, int hash_id)
+edge_t *find_edge(edge_t *parrent, char *name, unsigned long hash_id)
 {
-    if (hash_id < 0) {
+    if (hash_id == 0) {
         hash_id = hash(name);
     }
 
@@ -142,13 +142,13 @@ void get_data(FILE *file)
     char name1[51] = {0, }, name2[51] = {0,};
 
     while (fscanf(file, "%s %s\n", name1, name2) != EOF) {
-        item1 = find_edge(root, name1, -1);
+        item1 = find_edge(root, name1, 0);
         if (!item1) {
             item1 = create_new_edge(name1);
             add_to_root(root, item1);
         }
 
-        item2 = find_edge(root, name2, -1);
+        item2 = find_edge(root, name2, 0);
         if (!item2) {
             item2 = create_new_edge(name2);
             add_to_root(root, item2);
