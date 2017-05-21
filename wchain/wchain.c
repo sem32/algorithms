@@ -38,11 +38,11 @@ void get_data(FILE *file, int *length, t_wchain **root)
 
 char *check(char *_data, int len, t_wchain *item)
 {
-    if (!item) {
+    if (!item || !_data) {
         return NULL;
     }
     char data[51] = {0, };
-    t_wchain *current = item;
+    t_wchain *current = NULL;
 
     for (int i = 1; i <= len; ++i) {
         sprintf(data, "%.*s%.*s", i - 1, _data, len - i + 1, _data + i);
@@ -61,24 +61,40 @@ char *check(char *_data, int len, t_wchain *item)
 int calculate_result(t_wchain **root)
 {
     int i = 50;
-    int res = 1;
+    int res = 0, max = 0;
     char *data = NULL;
     while (root[i] == NULL) {
         i--;
     }
 
     data = root[i]->data;
-    while (i > 0 && root[i]) {
-        data = check(data, strlen(data), root[i - 1]);
+    while (i > 0) {
+        if (!root[i]) {
+            i--;
+            continue;
+        }
+        if (root[i - 1]) {
+            data = check(data, i, root[i - 1]);
+        }
         if (!data) {
-            data = root[i - 1]->data;
+            if (root[i - 1]) {
+                data = root[i - 1]->data;
+            } else {
+                if (res > max) {
+                    max = res;
+                }
+                res = 0;
+            }
         } else {
             res++;
         };
+        if (res > max) {
+            max = res;
+        }
         i--;
     }
 
-    return res;
+    return max;
 }
 
 int main(int argc, char* argv[])
