@@ -36,62 +36,89 @@ void get_data(FILE *file, int *length, t_wchain **root)
     return;
 }
 
-char *check(char *_data, int len, t_wchain *item)
+t_wchain *check(t_wchain *root, t_wchain *item,  t_wchain *next_item)
 {
-    if (!item || !_data) {
+    if (!item || !root) {
         return NULL;
     }
     char data[51] = {0, };
     t_wchain *current = NULL;
+    t_wchain *res = NULL;
+    t_wchain *current_root = root;
 
-    for (int i = 1; i <= len; ++i) {
-        sprintf(data, "%.*s%.*s", i - 1, _data, len - i + 1, _data + i);
-        current = item;
-        while (current) {
-            if (!strcmp(current->data, data)) {
-                return current->data;
+
+    while (current_root) {
+        int len = strlen(current_root->data);
+
+        for (int i = 1; i <= len; ++i) {
+            sprintf(data, "%.*s%.*s", i - 1, current_root->data, len - i + 1, current_root->data + i);
+            current = item;
+            while (current) {
+                if (!strcmp(current->data, data)) {
+                    res = current;
+                    if (next_item) {
+                        if (check(current, next_item, NULL)) {
+                            res = current;
+                            goto end;
+                        }
+                    } else {
+                        res = current;
+                        goto end;
+                    }
+                }
+                current = current->next;
             }
-            current = current->next;
         }
+        if (next_item) {
+            break;
+        }
+        current_root = current_root->next;
     }
 
-    return NULL;
+end:
+    return res;
 }
 
 int calculate_result(t_wchain **root)
 {
     int i = 50;
-    int res = 0, max = 0;
-    char *data = NULL;
+    int res = 1, max = 0;
+    t_wchain *current;
     while (root[i] == NULL) {
         i--;
     }
 
-    data = root[i]->data;
+    current = root[i];
+
     while (i > 0) {
-        if (!root[i]) {
+        if (root[i] == NULL) {
             i--;
+            if (res > max) {
+                max = res;
+            }
+//            res = 0;
             continue;
         }
-        if (root[i - 1]) {
-            data = check(data, i, root[i - 1]);
+        if (!current) {
+            current = root[i];
         }
-        if (!data) {
+        current = check(current, root[i - 1], i >= 2 ? root[i - 2] : NULL);
+        if (!current) {
             if (root[i - 1]) {
-                data = root[i - 1]->data;
-            } else {
-                if (res > max) {
-                    max = res;
-                }
-                res = 0;
+                current = root[i - 1];
             }
+            if (res > max) {
+                max = res;
+            }
+//            res = 0;
         } else {
             res++;
         };
-        if (res > max) {
-            max = res;
-        }
         i--;
+    }
+
+    if (res > max) {
+        max = res;
     }
 
     return max;
