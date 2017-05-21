@@ -61,7 +61,7 @@ char *check(char *_data, int len, t_wchain *item)
 int calculate_result(t_wchain **root)
 {
     int i = 50;
-    int res = 0;
+    int res = 1;
     char *data = NULL;
     while (root[i] == NULL) {
         i--;
