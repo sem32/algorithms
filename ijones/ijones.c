@@ -9,7 +9,7 @@
 
 typedef struct plate {
     char letter;
-    int length;
+    long length;
 } t_plate;
 
 void get_data(FILE *file, int *length_i, int *length_j, t_plate ***_root)
@@ -18,14 +18,14 @@ void get_data(FILE *file, int *length_i, int *length_j, t_plate ***_root)
     char *data = NULL;
     fscanf(file, "%d %d", length_j, length_i);
 
-    t_plate **root = calloc((*length_j), sizeof(t_plate *));
+    t_plate **root = calloc((*length_i), sizeof(t_plate *));
     *_root = root;
 
     for (i = 0; i < *length_i; i++) {
         data = calloc(*length_j, 1);
         fscanf(file, "%s", data);
 
-        root[i] = calloc(*length_i, sizeof(t_plate));
+        root[i] = calloc(*length_j, sizeof(t_plate));
 
         for (j = 0; j < *length_j; j++) {
             root[i][j].letter = data[j];
@@ -33,37 +33,35 @@ void get_data(FILE *file, int *length_i, int *length_j, t_plate ***_root)
         }
         free(data);
     }
-
     return;
 }
 
-int calculate_result(t_plate **root, int len_i, int len_j)
+long calculate_result(t_plate **root, int len_i, int len_j)
 {
-    for (int j = 0; j < len_j; ++j) {
-        for (int i = 0; i < len_i; ++i) {
-            int i_jm2 = (j >= 2 ? root[i][j - 2].letter == root[i][j].letter ? root[i][j - 2].length : 0 : 0);
+    int i, j;
+    for (j = 0; j < len_j; j++) {
+        for (i = 0; i < len_i; i++) {
             int i_jm1 = (j >= 1 ? root[i][j - 1].length : 0);
-            int im1_jm1 = (j >= 1 && i >= 1 ? root[i - 1][j - 1].letter == root[i][j].letter ? root[i - 1][j - 1].length : 0 : 0);
-            int im2_jm2 = (j >= 2 && i >= 2 ? root[i - 2][j - 2].letter == root[i][j].letter ? root[i - 2][j - 2].length : 0 : 0);
-            int ip1_jm1 = (j >= 1 && i + 1 < len_i ? root[i + 1][j - 1].letter == root[i][j].letter ? root[i + 1][j - 1].length : 0 : 0);
-            int ip2_jm2 = (j >= 2 && i + 2 < len_i ? root[i + 2][j - 2].letter == root[i][j].letter ? root[i + 2][j - 2].length : 0 : 0);
             if (j == 0) {
                 root[i][j].length = 1;
             } else {
-                root[i][j].length = i_jm2 + i_jm1 + im1_jm1 + im2_jm2 + ip1_jm1 + ip2_jm2;
+                long all_same = 0;
+                for (int l = 0; l < len_i; l++) {
+                    for (int k = 0; k < j; k++) {
+                        if (k == (j-1) && l == i) {
+                            continue;
+                        } else {
+                            if (root[l][k].letter == root[i][j].letter) {
+                                all_same += root[l][k].length;
+                            }
+                        }
+                    }
+                }
+                root[i][j].length = i_jm1 + all_same;
             }
-
-#ifdef DEBUG
-            printf("root[%d][%d]: %c, length: %d i_jm2: %d (%c), i_jm1: %d (%c), im1_jm1: %d (%c), im2_jm2: %d (%c), ip1_jm1: %d (%c), ip2_jm2: %d (%c)\n",
-                   i, j, root[i][j].letter, root[i][j].length,
-                   i_jm2, j >= 2 ? root[i][j - 2].letter : 'X', i_jm1, j >= 1 ? root[i][j - 1].letter : 'X', im1_jm1, j >= 1 && i >= 1 ? root[i-1][j-1].letter : 'X',
-                   im2_jm2, j >= 2 && i >= 2 ? root[i -2][j - 2].letter : 'X', ip1_jm1, j >= 1 && i+1 < len_i ? root[i + 1][j - 1].letter : 'X',
-                   ip2_jm2, j >= 2 && i+2 < len_i ? root[i + 2][j - 2].letter : 'X');
-#endif
         }
     }
-
-    return root[(len_i-1)][(len_j-1)].length + root[0][len_j-1].length;
+    return (len_i > 1 ? root[(len_i-1)][(len_j-1)].length : 0) + root[0][len_j-1].length;
 }
 
 int main(int argc, char* argv[])
@@ -98,8 +96,8 @@ int main(int argc, char* argv[])
 
 #ifdef DEBUG
     /*Debug data*/
-    for (int j = 0; j < len_j; ++j) {
-        for (int i = 0; i < len_i; ++i) {
+    for (int j = 0; j < length_j; ++j) {
+        for (int i = 0; i < length_i; ++i) {
             printf("root[%d][%d]: %c\n", i, j, root[i][j].letter);
         }
     }
