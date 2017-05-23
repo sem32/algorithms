@@ -9,7 +9,7 @@
 
 typedef struct plate {
     char letter;
-    long length;
+    unsigned long length;
 } t_plate;
 
 void get_data(FILE *file, int *length_i, int *length_j, t_plate ***_root)
@@ -36,29 +36,33 @@ void get_data(FILE *file, int *length_i, int *length_j, t_plate ***_root)
     return;
 }
 
-long calculate_result(t_plate **root, int len_i, int len_j)
+unsigned long calculate_result(t_plate **root, int len_i, int len_j)
 {
     int i, j;
+    unsigned long map[26] = {0, };
+    unsigned long *del_map = calloc(len_i, sizeof(unsigned long));
+
     for (j = 0; j < len_j; j++) {
         for (i = 0; i < len_i; i++) {
-            int i_jm1 = (j >= 1 ? root[i][j - 1].length : 0);
+            unsigned long i_jm1 = (j >= 1 ? root[i][j - 1].length : 0);
+
+
+//            printf("root[%d][%d]: %c %lu, i_jm1: %lu, map[%c]: %lu, del_map[%d]: %lu\n", i, j, root[i][j].letter, root[i][j].length, i_jm1, root[i][j].letter, map['z' - root[i][j].letter], i, del_map[i]);
+
+            if (j >= 1  && root[i][j-1].letter == root[i][j].letter) {
+                del_map[i] = root[i][j-1].length;
+            } else {
+                del_map[i] = 0;
+            }
+
             if (j == 0) {
                 root[i][j].length = 1;
             } else {
-                long all_same = 0;
-                for (int l = 0; l < len_i; l++) {
-                    for (int k = 0; k < j; k++) {
-                        if (k == (j-1) && l == i) {
-                            continue;
-                        } else {
-                            if (root[l][k].letter == root[i][j].letter) {
-                                all_same += root[l][k].length;
-                            }
-                        }
-                    }
-                }
-                root[i][j].length = i_jm1 + all_same;
+                root[i][j].length = i_jm1 + map['z' - root[i][j].letter] - del_map[i];
             }
+        }
+        for (i = 0; i < len_i; i++) {
+            map['z' - root[i][j].letter] += root[i][j].length;
         }
     }
     return (len_i > 1 ? root[(len_i-1)][(len_j-1)].length : 0) + root[0][len_j-1].length;
@@ -103,15 +107,15 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    int res = calculate_result(root, length_i, length_j);
+    unsigned long res = calculate_result(root, length_i, length_j);
     if (!(file_out = fopen(file_name_out,"w"))) {
         printf("File OUT not found '%s'\n", file_name_out);
         return 0;
     }
 
-    fprintf(file_out, "%d\n", res);
+    fprintf(file_out, "%lu\n", res);
 //#ifdef DEBUG
-    printf("res: %d\n", res);
+    printf("res: %lu\n", res);
 //#endif
 
     fclose(file_in);
