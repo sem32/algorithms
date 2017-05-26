@@ -77,14 +77,12 @@ void bigIncrement(BIGINT *base, BIGINT *increment) {
     }
 }
 
-
-
 void bigDecrement(BIGINT *base, BIGINT *decrement) {
     BLOCK carry = 0;
     int i = 0;
 
     // Add common blocks together.
-    for (i = 0; i < base->length && i < decrement->length; i++) {
+    for (i = 0; i < decrement->length; i++) {
         if (decrement->blocks[i] > base->blocks[i]) {
             base->blocks[i] = MAX_BLOCK_VALUE + base->blocks[i] - decrement->blocks[i] - carry;
             carry = 1;
@@ -94,7 +92,6 @@ void bigDecrement(BIGINT *base, BIGINT *decrement) {
         }
     }
 }
-
 
 void bigCopy(BIGINT *dest, BIGINT *src) {
     for (int i = 0; i < src->length; i++) {
@@ -156,40 +153,23 @@ char *calculate_result(t_plate **root, int len_i, int len_j)
     for (i = 0; i < SIZE_ALPHABET; i++) {
         bigAllocate(&map[i], 0);
     }
-    BIGINT *del_map = calloc(len_i, sizeof(BIGINT));
 
     for (j = 0; j < len_j; j++) {
         for (i = 0; i < len_i; i++) {
-            BIGINT i_jm1;
-            bigAllocate(&i_jm1, 0);
-            if (j >= 1) {
-                bigIncrement(&i_jm1, &root[i][j - 1].size);
-            }
-
-            if (j >= 1  && root[i][j-1].letter == root[i][j].letter) {
-                bigFree(&del_map[i]);
-                bigAllocate(&del_map[i], 0);
-                bigIncrement(&del_map[i], &root[i][j-1].size);
-            } else {
-                bigFree(&del_map[i]);
-                bigAllocate(&del_map[i], 0);
-            }
-
             if (j == 0) {
                 bigAllocate(&root[i][j].size, 1);
             } else {
                 bigAllocate(&root[i][j].size, 0);
-                bigIncrement(&root[i][j].size, &i_jm1);
+                if (j >= 1 && root[i][j-1].letter != root[i][j].letter) {
+                    bigIncrement(&root[i][j].size, &root[i][j-1].size);
+                }
                 bigIncrement(&root[i][j].size, &map['z' - root[i][j].letter]);
-                bigDecrement(&root[i][j].size, &del_map[i]);
             }
-
-            bigFree(&i_jm1);
         }
         for (i = 0; i < len_i; i++) {
             bigIncrement(&map['z' - root[i][j].letter], &root[i][j].size);
-            if (j != len_j-1) {
-                bigFree(&root[i][j].size);
+            if (j > 2) {
+                bigFree(&root[i][j-2].size);
             }
         }
     }
