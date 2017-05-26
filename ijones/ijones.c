@@ -1,15 +1,129 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 //#define DEBUG
 
 #define FILE_IN "ijones.in"
 #define FILE_OUT "ijones.out"
 
+#define SIZE_ALPHABET ('z' - 'a' + 1)
+
+/************************************************************************************************************/
+// We'll represent big integers using 64-bit blocks in little-endian order:
+//     [least significant 18 decimal digits] [more significant 18] ... [most significant 18]
+//
+// For example, 12945734322108635523 will be represented as:
+//     [945734322108635523] [000000000000000012] ... [000000000000000000]
+
+typedef uint64_t BLOCK;
+
+typedef struct {
+    uint16_t length;
+    BLOCK *blocks;
+} BIGINT;
+
+const BLOCK MAX_BLOCK_VALUE = 1000000000000000000;
+const char * BLOCK_FORMAT_SPEC = "%" PRId64;
+const char * BLOCK_ZERO_PADDED_FORMAT_SPEC = "%018" PRId64;
+
+// 380 * 18 = 6840 digits should be enough for our problem.
+const uint16_t BIGINT_MAX_BLOCKS = 380;
+
+void bigFree(BIGINT *value) {
+    value->length = 0;
+    if (value->blocks) {
+        free(value->blocks);
+    }
+}
+
+void bigAllocate(BIGINT *value, BLOCK data) {
+    value->length = 1;
+    value->blocks = (BLOCK *)calloc(BIGINT_MAX_BLOCKS, sizeof(BLOCK));
+    value->blocks[0] = data;
+}
+
+void bigIncrement(BIGINT *base, BIGINT *increment) {
+    BLOCK carry = 0;
+    int i = 0;
+
+    // Add common blocks together.
+    for (i = 0; i < base->length && i < increment->length; i++) {
+        BLOCK sum = base->blocks[i] + increment->blocks[i] + carry;
+        base->blocks[i] = sum % MAX_BLOCK_VALUE;
+        carry = sum / MAX_BLOCK_VALUE;
+    }
+    // Add remaining base blocks, if any.
+    while (i < base->length) {
+        BLOCK sum = base->blocks[i] + carry;
+        base->blocks[i] = sum % MAX_BLOCK_VALUE;
+        carry = sum / MAX_BLOCK_VALUE;
+        i++;
+    }
+    // Otherwise, add remaining increment blocks, if any.
+    while (i < increment->length) {
+        BLOCK sum = increment->blocks[i] + carry;
+        base->length++;
+        base->blocks[i] = sum % MAX_BLOCK_VALUE;
+        carry = sum / MAX_BLOCK_VALUE;
+        i++;
+    }
+
+    // If there's something we still need to carry over, let's add one more block.
+    if (carry > 0) {
+        base->blocks[base->length] = carry;
+        base->length++;
+    }
+}
+
+
+
+void bigDecrement(BIGINT *base, BIGINT *decrement) {
+    BLOCK carry = 0;
+    int i = 0;
+
+    // Add common blocks together.
+    for (i = 0; i < base->length && i < decrement->length; i++) {
+        if (decrement->blocks[i] > base->blocks[i]) {
+            base->blocks[i] = MAX_BLOCK_VALUE + base->blocks[i] - decrement->blocks[i] - carry;
+            carry = 1;
+        } else {
+            base->blocks[i] = base->blocks[i] - decrement->blocks[i] - carry;
+            carry = 0;
+        }
+    }
+}
+
+
+void bigCopy(BIGINT *dest, BIGINT *src) {
+    for (int i = 0; i < src->length; i++) {
+        dest->blocks[i] = src->blocks[i];
+    }
+    dest->length = src->length;
+}
+
+void bigFprint(FILE *outputFile, BIGINT *value) {
+    fprintf(outputFile, BLOCK_FORMAT_SPEC, value->blocks[value->length - 1]);
+    for (int i = value->length - 2; i >= 0; i--) {
+        fprintf(outputFile, BLOCK_ZERO_PADDED_FORMAT_SPEC, value->blocks[i]);
+    }
+}
+
+char *bigPrint(BIGINT *value) {
+    char *data = calloc(18, value->length);
+    sprintf(data, BLOCK_FORMAT_SPEC, value->blocks[value->length - 1]);
+    for (int i = value->length - 2; i >= 0; i--) {
+        sprintf(data + strlen(data), BLOCK_ZERO_PADDED_FORMAT_SPEC, value->blocks[i]);
+    }
+    return data;
+}
+/************************************************************************************************************/
+
+
 typedef struct plate {
     char letter;
-    unsigned long length;
+    BIGINT size;
 } t_plate;
 
 void get_data(FILE *file, int *length_i, int *length_j, t_plate ***_root)
@@ -29,43 +143,64 @@ void get_data(FILE *file, int *length_i, int *length_j, t_plate ***_root)
 
         for (j = 0; j < *length_j; j++) {
             root[i][j].letter = data[j];
-            root[i][j].length = 0;
         }
         free(data);
     }
     return;
 }
 
-unsigned long calculate_result(t_plate **root, int len_i, int len_j)
+char *calculate_result(t_plate **root, int len_i, int len_j)
 {
     int i, j;
-    unsigned long map[26] = {0, };
-    unsigned long *del_map = calloc(len_i, sizeof(unsigned long));
+    BIGINT map[SIZE_ALPHABET] = {0, };
+    for (i = 0; i < SIZE_ALPHABET; i++) {
+        bigAllocate(&map[i], 0);
+    }
+    BIGINT *del_map = calloc(len_i, sizeof(BIGINT));
 
     for (j = 0; j < len_j; j++) {
         for (i = 0; i < len_i; i++) {
-            unsigned long i_jm1 = (j >= 1 ? root[i][j - 1].length : 0);
-
-
-//            printf("root[%d][%d]: %c %lu, i_jm1: %lu, map[%c]: %lu, del_map[%d]: %lu\n", i, j, root[i][j].letter, root[i][j].length, i_jm1, root[i][j].letter, map['z' - root[i][j].letter], i, del_map[i]);
+            BIGINT i_jm1;
+            bigAllocate(&i_jm1, 0);
+            if (j >= 1) {
+                bigIncrement(&i_jm1, &root[i][j - 1].size);
+            }
 
             if (j >= 1  && root[i][j-1].letter == root[i][j].letter) {
-                del_map[i] = root[i][j-1].length;
+                bigFree(&del_map[i]);
+                bigAllocate(&del_map[i], 0);
+                bigIncrement(&del_map[i], &root[i][j-1].size);
             } else {
-                del_map[i] = 0;
+                bigFree(&del_map[i]);
+                bigAllocate(&del_map[i], 0);
             }
 
             if (j == 0) {
-                root[i][j].length = 1;
+                bigAllocate(&root[i][j].size, 1);
             } else {
-                root[i][j].length = i_jm1 + map['z' - root[i][j].letter] - del_map[i];
+                bigAllocate(&root[i][j].size, 0);
+                bigIncrement(&root[i][j].size, &i_jm1);
+                bigIncrement(&root[i][j].size, &map['z' - root[i][j].letter]);
+                bigDecrement(&root[i][j].size, &del_map[i]);
             }
+
+            bigFree(&i_jm1);
         }
         for (i = 0; i < len_i; i++) {
-            map['z' - root[i][j].letter] += root[i][j].length;
+            bigIncrement(&map['z' - root[i][j].letter], &root[i][j].size);
+            if (j != len_j-1) {
+                bigFree(&root[i][j].size);
+            }
         }
     }
-    return (len_i > 1 ? root[(len_i-1)][(len_j-1)].length : 0) + root[0][len_j-1].length;
+    BIGINT res;
+    bigAllocate(&res, 0);
+    bigIncrement(&res, &root[0][len_j-1].size);
+    if (len_i > 1) {
+        bigIncrement(&res, &root[(len_i-1)][(len_j-1)].size);
+    }
+
+    return bigPrint(&res);
 }
 
 int main(int argc, char* argv[])
@@ -107,15 +242,15 @@ int main(int argc, char* argv[])
     }
 #endif
 
-    unsigned long res = calculate_result(root, length_i, length_j);
+    char *res = calculate_result(root, length_i, length_j);
     if (!(file_out = fopen(file_name_out,"w"))) {
         printf("File OUT not found '%s'\n", file_name_out);
         return 0;
     }
 
-    fprintf(file_out, "%lu\n", res);
+    fprintf(file_out, "%s\n", res);
 //#ifdef DEBUG
-    printf("res: %lu\n", res);
+    printf("res: %s\n", res);
 //#endif
 
     fclose(file_in);
