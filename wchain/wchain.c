@@ -158,27 +158,17 @@ int calculate_result(t_wchain **root)
 
 static inline int find(char *src, char *dst)
 {
-    int sum_src = 0;
-    int sum_dst = 0;
+    unsigned long long bin_src = 0;
+    unsigned long long bin_dst = 0;
 
     for (int i = 0; i < strlen(src); ++i) {
-        sum_src += src[i];
+        bin_src |= 1 << (src[i] - 'a');
     }
-    for (int j = 0; j < strlen(dst); ++j) {
-        sum_dst += dst[j];
-    }
-
-    int letter = sum_dst - sum_src;
-
-    char data[2];
-    sprintf(data, "%c", letter);
-
-    if ((letter <= 'z' || letter >= 'a') && strstr(dst, data)) {
-//        printf("!! src: %s, dst: %s, letter: %d (%c)\n", src, dst, letter, letter);
-        return 1;
+    for (int i = 0; i < strlen(dst); ++i) {
+        bin_dst |= 1 << (dst[i] - 'a');
     }
 
-    return 0;
+    return (bin_src & bin_dst) == bin_src;
 }
 
 int calculate_result(t_wchain **root)
@@ -214,7 +204,7 @@ int calculate_result(t_wchain **root)
                             res = next->counter;
                         }
 //                        printf("\tcounter: %d for %s\n", next->counter, next->data);
-                    } else {
+//                    } else {
 //                        printf("\tDon't Compare %s vs %s\n", combination->data, current->data);
                     }
                     combination = combination->next;
@@ -225,8 +215,6 @@ int calculate_result(t_wchain **root)
             if (res < current->counter) {
                 res = current->counter;
             }
-
-
 
             current = current->next;
         }
