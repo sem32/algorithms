@@ -294,9 +294,9 @@ int main(int argc, char* argv[])
     }
 
     fprintf(file_out, "%.2f\n", res);
-#ifdef DEBUG
+//#ifdef DEBUG
     printf("res: %.2f\n", res);
-#endif
+//#endif
 
     /*Free data*/
     if (price) {
