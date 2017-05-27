@@ -8,6 +8,10 @@
 #define FILE_IN "gamsrv.in"
 #define FILE_OUT "gamsrv.out"
 
+#ifndef ULONG_LONG_MAX
+#define ULONG_LONG_MAX (9223372036854775807LL * 2ULL + 1)
+#endif
+
 struct went;
 
 typedef enum NODE_TYPE {
@@ -150,7 +154,7 @@ void get_data(FILE *file, node_t ***_nodes, int *length_nodes)
 void init(node_t **nodes, int length_nodes)
 {
     for (int i = 1; i < length_nodes ; ++i) {
-        nodes[i]->dist = LONG_LONG_MAX;
+        nodes[i]->dist = ULONG_LONG_MAX;
         nodes[i]->visited = 0;
     }
 }
