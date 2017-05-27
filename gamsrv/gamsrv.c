@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
+#include <limits.h>
 
 //#define DEBUG
 
@@ -14,7 +14,7 @@ typedef enum NODE_TYPE {
     ROUTE,
     CLIENT,
     SERVER
-} node_t;
+} e_node_t;
 
 typedef struct edge {
     int latency;
@@ -31,17 +31,18 @@ typedef struct node {
     int number;
     list_edges_t *head;
     list_edges_t *tail;
+    int dist;
+    int visited;
 
-    node_t type;
-} went_t;
+    e_node_t type;
+} node_t;
 
-void set_array(char *data, went_t **ret, int **clients)
+void set_array(char *data, node_t **nodes)
 {
-    int length_str, i, client_index = 0;
+    int length_str, i;
     int number = 0, counter = 0;
-    went_t *array;
 
-    if (!data || !ret) {
+    if (!data || !nodes) {
         return;
     }
 
@@ -53,12 +54,16 @@ void set_array(char *data, went_t **ret, int **clients)
         }
     }
 
-    array = *ret;
     for (i = 0; i < length_str; i++) {
         if (data[i] == ' ' || data[i] == '\n') {
             if (counter > 0) {
-                array[number].type = CLIENT;
-                clients[++client_index] = number;
+
+                if (nodes[number] == NULL) {
+                    nodes[number] = calloc(1, sizeof(node_t));
+                    nodes[number]->number = number;
+                }
+
+                nodes[number]->type = CLIENT;
                 number = 0;
                 counter = 0;
             }
@@ -68,90 +73,222 @@ void set_array(char *data, went_t **ret, int **clients)
         }
     }
     if (counter > 0) {
-        array[number].type = CLIENT;
-        clients[++client_index] = number;
+        if (nodes[number] == NULL) {
+            nodes[number] = calloc(1, sizeof(node_t));
+            nodes[number]->number = number;
+            printf("number: %d\n", number);
+        }
+        nodes[number]->type = CLIENT;
     }
     return;
 }
 
-void get_data(FILE *file, went_t **_nodes, edge_t **_edges, int *length_nodes, int *length_edges, int **clients)
+void get_data(FILE *file, node_t ***_nodes, int *length_nodes)
 {
     char *line = NULL;
     size_t n = 0;
-    went_t *nodes = *_nodes;
-    edge_t *edges = *_edges;
     int startnode = 0, endnode = 0, latency = 0;
+    int length_edges;
 
-    fscanf(file, "%d %d\n", length_nodes, length_edges);
+    fscanf(file, "%d %d\n", length_nodes, &length_edges);
 
-    nodes = calloc(*length_nodes, sizeof(went_t));
-    edges = calloc(*length_edges, sizeof(edge_t));
-    clients = calloc(*length_nodes, sizeof(int));;
+    *length_nodes = *length_nodes + 1;
+
+    node_t **nodes = *_nodes = calloc(*length_nodes, sizeof(node_t *));
 
     if (getline(&line, &n, file) > 0) {
-        set_array(line, &nodes, &clients);
+        set_array(line, nodes);
         if (line) {
             free(line);
             line = NULL;
         }
     }
 
-    int index_eges = 0;
     while ((fscanf(file, "%d %d %d", &startnode, &endnode, &latency) != EOF)) {
-        edges[index_eges].startnode = &nodes[startnode];
-        edges[index_eges].endtnode = &nodes[endnode];
-        edges[index_eges].latency = latency;
-
-        if (nodes[startnode].head == NULL) {
-            nodes[startnode].head = calloc(1, sizeof(list_edges_t));
-            nodes[startnode].head->data = &edges[index_eges];
-            nodes[startnode].head->next= NULL;
-            nodes[startnode].tail = nodes[startnode].head;
-        } else {
-            nodes[startnode].tail->next = calloc(1, sizeof(list_edges_t));
-            nodes[startnode].tail->next->data = &edges[index_eges];
-            nodes[startnode].head->next->next= NULL;
-            nodes[startnode].tail = nodes[startnode].tail->next;
+        if (nodes[startnode] == NULL) {
+            nodes[startnode] = calloc(1, sizeof(node_t));
+            nodes[startnode]->number = startnode;
         }
 
-        index_eges++;
+        if (nodes[endnode] == NULL) {
+            nodes[endnode] = calloc(1, sizeof(node_t));
+            nodes[endnode]->number = endnode;
+        }
+
+        edge_t *edge = calloc(1, sizeof(edge_t));
+        edge->startnode = nodes[startnode];
+        edge->endtnode = nodes[endnode];
+        edge->latency = latency;
+
+        list_edges_t *list_edges_startnode = calloc(1, sizeof(list_edges_t));
+        list_edges_startnode->data = edge;
+        list_edges_startnode->next = NULL;
+
+        if (nodes[startnode]->head == NULL) {
+            nodes[startnode]->head = list_edges_startnode;
+        } else {
+            nodes[startnode]->tail->next = list_edges_startnode;
+        }
+        nodes[startnode]->tail = list_edges_startnode;
+
+        list_edges_t *list_edges_endnode = calloc(1, sizeof(list_edges_t));
+        list_edges_endnode->data = edge;
+        list_edges_endnode->next = NULL;
+
+        if (nodes[endnode]->head == NULL) {
+            nodes[endnode]->head = list_edges_endnode;
+        } else {
+            nodes[endnode]->tail->next = list_edges_endnode;
+        }
+        nodes[endnode]->tail = list_edges_endnode;
+
+        startnode = endnode = latency = 0;
     }
 
     return;
 }
 
-int getCut(went_t *nodes, int vertexCount)
+void init(node_t **nodes, int length_nodes)
 {
-    went_t *G = nodes;
-    int edgeCount = 0;
-    while (vertexCount > 2) {
-        edge = случайное ребро из G
-        contract(edge);
-        vertexCount--;
-        edgeCount = количество ребер в G
+    for (int i = 1; i < length_nodes ; ++i) {
+        nodes[i]->dist = INT_MAX;
+        nodes[i]->visited = 0;
     }
-    return edgeCount;
 }
 
+typedef struct queue {
+    struct queue *head;
+    struct queue *next;
+    struct queue *prev;
+    struct queue *tail;
 
-int maxL(went_t *nodes, edge_t *edges, int length_nodes, int length_edges)
+    int processed;
+
+    node_t *data;
+} queue_t;
+
+void queue_push(queue_t *queue, node_t *item)
 {
-    int answer = 0;
-    int i, curCut;
-    for (i = 1; i < length_nodes; i++) {
-        curCut = getCut(nodes, length_nodes);
-        if (curCut < answer || answer == 0) {
-            answer = curCut;
+    if (!queue) {
+        return;
+    }
+
+    if (item->visited) {
+        return;
+    }
+
+    queue_t *current = (queue_t *) calloc(sizeof(queue_t), 1);
+    current->next = NULL;
+    current->prev = NULL;
+    current->data = item;
+
+    if (queue->head == NULL) {
+        queue->head = current;
+    } else {
+        queue->tail->next = current;
+        queue->tail->prev = queue->tail;
+    }
+    queue->tail = current;
+}
+
+node_t *queue_take_min(queue_t *queue)
+{
+    if (!queue || queue->head == NULL) {
+        return NULL;
+    }
+
+    queue_t *current = queue->head;
+    queue_t *item = current;
+    node_t *min = NULL;
+    while (current) {
+        if (current->processed) {
+            current = current->next;
+            continue;
+        }
+        if (current->data->visited == 0) {
+            if (min == NULL) {
+                min = current->data;
+                item = current;
+            } else {
+                if (current->data->dist < min->dist) {
+                    min = current->data;
+                    item = current;
+                }
+            }
+        }
+        current = current->next;
+    }
+
+    if (item) {
+        item->processed = 1;
+    }
+
+    if (min) {
+        min->visited = 1;
+    }
+
+    return min;
+}
+
+int deikstra(node_t **nodes, int index, int length_nodes)
+{
+    int res = 0;
+    nodes[index]->dist = 0;
+    queue_t queue = {NULL, NULL, NULL, NULL, 0, NULL};
+
+    for (int i = 1; i < length_nodes; ++i) {
+        queue_push(&queue, nodes[i]);
+    }
+
+    node_t *min;
+    node_t *node;
+    list_edges_t *current_list_edges;
+    while ((min = queue_take_min(&queue))) {
+        current_list_edges = min->head;
+        int count = 0;
+        while (current_list_edges) {
+            if (min != current_list_edges->data->endtnode) {
+                node = current_list_edges->data->endtnode;
+            } else {
+                node = current_list_edges->data->startnode;
+            }
+            if ((min->dist + current_list_edges->data->latency) < node->dist) {
+                node->dist = min->dist + current_list_edges->data->latency;
+            }
+            count++;
+            current_list_edges = current_list_edges->next;
         }
     }
-    return answer;
-}
 
-void implementation(went_t *_nodes, edge_t *_edges, int length_nodes, int length_edges, int *clients)
+    res = 0;
+    for (int i = 1; i < length_nodes; ++i) {
+        if (res < nodes[i]->dist) {
+            res = nodes[i]->dist;
+        }
+    }
+
+    return res;
+};
+
+int implementation(node_t **nodes, int length_nodes)
 {
-    int i;
+    int res = 0;
+    int min = -1;
 
+    for (int i = 1; i < length_nodes ; ++i) {
+        if (nodes[i]->type != ROUTE) {
+            continue;
+        }
 
+        init(nodes, length_nodes);
+
+        res = deikstra(nodes, i, length_nodes);
+        if (min < 0 || min > res) {
+            min = res;
+        }
+    }
+
+    return min;
 }
 
 int main(int argc, char* argv[])
@@ -180,35 +317,40 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    went_t *nodes = NULL;
-    edge_t *edges = NULL;
-    int *clients = NULL;
-    int length_nodes, length_edges;
+    node_t **nodes = NULL;
+    int length_nodes;
 
-    get_data(file_in, &nodes, &edges, &length_nodes, &length_edges, &clients);
+    get_data(file_in, &nodes, &length_nodes);
 
 #ifdef DEBUG
-    /*Debug data*/
-    for (i = 0; i < C; i++) {
-        printf("H[%d]: %d, G[%d]: %d\n", i, H[i].h, i, H[i].g);
+    for (int i = 1; i < length_nodes; ++i) {
+        printf("node: %d, type: %s\n", i, nodes[i]->type == CLIENT ? "CLIENT" : nodes[i]->type == ROUTE ? "ROUTE" : "SERVER");
+        list_edges_t *list = nodes[i]->head;
+        while (list) {
+            printf("edges: from:%d to %d latency: %d\n", list->data->startnode->number, list->data->endtnode->number, list->data->latency);
+            list = list->next;
+        }
     }
 #endif
-
-//    print_tree(root);
 
     if (!(file_out = fopen(file_name_out,"w"))) {
         printf("File OUT not found '%s'\n", file_name_out);
         return 0;
     }
 
-    implementation(nodes, edges, length_nodes, length_edges, clients);
+    int res = implementation(nodes, length_nodes);
 
 //#ifdef DEBUG
-//    printf("res: %d\n", res);
+    printf("res: %d\n", res);
 //#endif
+    if (!(file_out = fopen(file_name_out,"w"))) {
+        printf("File OUT not found '%s'\n", file_name_out);
+        return 0;
+    }
+
+    fprintf(file_out, "%d\n", res);
 
     /*Free data*/
-    //
 
     fclose(file_in);
     fclose(file_out);
